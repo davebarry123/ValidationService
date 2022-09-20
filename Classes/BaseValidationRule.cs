@@ -6,7 +6,7 @@
 
         public string Body { get; set; } = string.Empty;
 
-        public abstract List<ValidationResult> Validate();
+        public abstract Task<List<ValidationResult>> Validate();
     }
 
     public enum ValidationType

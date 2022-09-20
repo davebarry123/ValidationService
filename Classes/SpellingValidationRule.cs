@@ -7,14 +7,14 @@
     {
         public SpellingValidationRule(string body)
         {
-            this.Name = Assembly.GetExecutingAssembly().GetName().Name;
+            this.Name = Assembly.GetExecutingAssembly()?.GetName()?.Name;
             this.Body = body;
         }
 
-        public override List<ValidationResult> Validate()
+        public override async Task<List<ValidationResult>> Validate()
         {
             var result = new List<ValidationResult>();
-            var spell = WordList.CreateFromFilesAsync("Dictionaries/English (American).dic").Result;
+            var spell = await WordList.CreateFromFilesAsync("Dictionaries/English (American).dic");
             string[] lines = this.Body.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 
             for (int lineNum = 1; lineNum < lines.Length + 1; lineNum++)
