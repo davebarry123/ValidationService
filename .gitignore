@@ -41,6 +41,10 @@ bld/
 # Visual Studio 2017 auto generated files
 Generated\ Files/
 
+# ignoring appsettings files
+appsettings.json
+**/appsettings.json
+
 # MSTest test Results
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
