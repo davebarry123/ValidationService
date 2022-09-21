@@ -1,9 +1,6 @@
-﻿using Azure.Identity;
-using Azure.Security.KeyVault.Secrets;
-using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
+﻿using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
 using Microsoft.Azure.KeyVault;
 using System.Reflection;
-using static System.Net.WebRequestMethods;
 
 namespace ValidationService.Classes
 {
