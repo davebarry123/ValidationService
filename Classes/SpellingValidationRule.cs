@@ -16,6 +16,7 @@
             var result = new List<ValidationResult>();
             var spell = await WordList.CreateFromFilesAsync("Dictionaries/English (American).dic");
             string[] lines = this.Body.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            Console.WriteLine("Text is being analyzed for spelling...");
 
             for (int lineNum = 1; lineNum < lines.Length + 1; lineNum++)
             {

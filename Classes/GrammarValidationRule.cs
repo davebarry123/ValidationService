@@ -16,6 +16,7 @@
             var result = new List<ValidationResult>();
             string[] lines = this.Body.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
 
+            Console.WriteLine("Text is being analyzed for grammar...");
             for (int lineNum = 1; lineNum < lines.Length + 1; lineNum++)
             {
                 result.AddRange(await this.CheckGrammar(lineNum, lines[lineNum - 1]));

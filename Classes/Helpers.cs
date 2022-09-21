@@ -6,14 +6,27 @@ namespace ValidationService.Classes
 {
     public static class Helpers
     {
+        // specify maximum image height
+        private const int MaxHeight = 500;
+
+        // specify maximum image width
+        private const int MaxWidth = 500;
+
         // Specify the features to return  
         private static readonly IList<VisualFeatureTypes?> features =
             new List<VisualFeatureTypes?>()
-        {
-            VisualFeatureTypes.Categories, VisualFeatureTypes.Description,
-            VisualFeatureTypes.Faces, VisualFeatureTypes.ImageType,
-            VisualFeatureTypes.Tags, VisualFeatureTypes.Adult
-        };
+            {
+                VisualFeatureTypes.Categories, VisualFeatureTypes.Description,
+                VisualFeatureTypes.Faces, VisualFeatureTypes.ImageType,
+                VisualFeatureTypes.Tags, VisualFeatureTypes.Adult
+            };
+
+        // Specify valid image formats
+        private static readonly IList<string> imageFormats =
+            new List<string>()
+            {
+                "jpeg", "gif", "png", "jpg", "tiff", "tif", "bmp"
+            };
 
         public static List<BaseValidationRule> GetValidationRules(string body, ValidationType type)
         {
@@ -26,7 +39,8 @@ namespace ValidationService.Classes
                     break;
 
                 case ValidationType.Image:
-                    validationList.Add(new ImageValidationRule(body));
+                    validationList.Add(new ImageMetadataValidationRule(body));
+                    validationList.Add(new ImageNsfwValidationRule(body));
                     break;
 
                 default:
@@ -50,37 +64,110 @@ namespace ValidationService.Classes
             return config[configurationName];
         }
 
-        // Analyze a local image  
-        public static async Task AnalyzeLocalAsync(
-            ComputerVisionClient computerVision, string imagePath)
+        public static bool IsFileLocal(string filePath)
         {
-            if (!File.Exists(imagePath))
+            if (!File.Exists(filePath))
             {
                 Console.WriteLine(
-                    "\nUnable to open or read localImagePath:\n{0} \n", imagePath);
-                return;
+                    $"\nUnable to open or read local file path:\n{filePath} \n");
+                return false;
             }
 
+            return true;
+        }
+
+        public static bool IsFileRemote(string imageUrl)
+        {
+            if (!Uri.IsWellFormedUriString(imageUrl, UriKind.Absolute))
+            {
+                Console.WriteLine(
+                    $"\nUnable to open or read remote file path:\n{imageUrl} \n");
+                return false;
+            }
+
+            return true;
+        }
+
+        // Analyze a local image for NSFW content  
+        public static async Task<Tuple<bool, ImageMetadata>> IsNsfwLocalAsync(
+            ComputerVisionClient computerVision, string imagePath)
+        {
             using (Stream imageStream = File.OpenRead(imagePath))
             {
-                ImageAnalysis analysis = await computerVision.AnalyzeImageInStreamAsync(
-                    imageStream, features);
-                DisplayResults(analysis, imagePath);
+                ImageAnalysis analysis = 
+                    await computerVision.AnalyzeImageInStreamAsync(imageStream, features);
+                return
+                    Tuple.Create(
+                        analysis.Adult.IsAdultContent || analysis.Adult.IsRacyContent ||
+                        analysis.Adult.IsGoryContent,
+                        new ImageMetadata
+                        {
+                            IsAdult = analysis.Adult.IsAdultContent,
+                            IsRacy = analysis.Adult.IsRacyContent,
+                            IsGory = analysis.Adult.IsGoryContent,
+                        });
             }
         }
 
-        // Display the most relevant caption for the image  
-        private static void DisplayResults(ImageAnalysis analysis, string imageUri)
+        // Analyze a remote image for NSFW content
+        public static async Task<Tuple<bool, ImageMetadata>> IsNsfwRemoteAsync(
+            ComputerVisionClient computerVision, string imagePath)
         {
-            Console.WriteLine(imageUri);
-            if (analysis.Description.Captions.Count != 0)
+            ImageAnalysis analysis =
+                await computerVision.AnalyzeImageAsync(imagePath, features);
+            return
+                Tuple.Create(
+                    analysis.Adult.IsAdultContent || analysis.Adult.IsRacyContent ||
+                    analysis.Adult.IsGoryContent,
+                    new ImageMetadata
+                    {
+                        IsAdult = analysis.Adult.IsAdultContent,
+                        IsRacy = analysis.Adult.IsRacyContent,
+                        IsGory = analysis.Adult.IsGoryContent,
+                    });
+        }
+
+        // Analyze a local image for size and format  
+        public static async Task<Tuple<bool, ImageMetadata>> IsValidLocalAsync(
+            ComputerVisionClient computerVision, string imagePath)
+        {
+            using (Stream imageStream = File.OpenRead(imagePath))
             {
-                Console.WriteLine(analysis.Description.Captions[0].Text + "\n");
+                ImageAnalysis analysis =
+                    await computerVision.AnalyzeImageInStreamAsync(imageStream, features);
+                bool imageFormatIsValid = Helpers.imageFormats.Contains(analysis.Metadata.Format.ToLowerInvariant());
+                bool imageSizeIsValid = analysis.Metadata.Width <= Helpers.MaxWidth 
+                    && analysis.Metadata.Height <= Helpers.MaxHeight;
+                return 
+                    Tuple.Create(
+                        imageFormatIsValid && imageSizeIsValid, 
+                        new ImageMetadata 
+                        { 
+                            Height = analysis.Metadata.Height, 
+                            Width = analysis.Metadata.Width, 
+                            Format = analysis.Metadata.Format 
+                        });
             }
-            else
-            {
-                Console.WriteLine("No description generated.");
-            }
+        }
+
+        // Analyze a remote image for size and format  
+        public static async Task<Tuple<bool, ImageMetadata>> IsValidRemoteAsync(
+            ComputerVisionClient computerVision, string imagePath)
+        {
+            ImageAnalysis analysis =
+                await computerVision.AnalyzeImageAsync(imagePath, features);
+            bool imageFormatIsValid = Helpers.imageFormats.Contains(analysis.Metadata.Format.ToLowerInvariant());
+            bool imageSizeIsValid = analysis.Metadata.Width <= Helpers.MaxWidth
+                && analysis.Metadata.Height <= Helpers.MaxHeight;
+            return
+                Tuple.Create(
+                    imageFormatIsValid && imageSizeIsValid,
+                    new ImageMetadata
+                    {
+                        Height = analysis.Metadata.Height,
+                        Width = analysis.Metadata.Width,
+                        Format = analysis.Metadata.Format
+                    });
         }
     }
 }
